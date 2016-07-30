@@ -41,9 +41,7 @@ lazy val myService = wire[MyService]
 into this:
 
 ```scala
-trait Module {
-  lazy val myService = new MyService(otherService1, otherService2)
-}
+lazy val myService = new MyService(otherService1, otherService2)
 ```
 
 so that when you do this:

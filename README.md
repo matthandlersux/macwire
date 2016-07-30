@@ -11,7 +11,7 @@ Table of Contents
 * [Scopes](#scopes)
 * [Accessing wired instances dynamically](#accessing-wired-instances-dynamically)
 * [Interceptors](#interceptors)
-* [Qualifiers](#qualifiers)           
+* [Qualifiers](#qualifiers)
 * [Limitations](#limitations)
 * [Installation, using with SBT](#installation-using-with-sbt)
 * [Debugging](#debugging)
@@ -27,9 +27,47 @@ MacWire
 [![Build Status](https://travis-ci.org/adamw/macwire.svg?branch=master)](https://travis-ci.org/adamw/macwire)
 [![Join the chat at https://gitter.im/adamw/macwire](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/adamw/macwire?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.softwaremill.macwire/macros_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.softwaremill.macwire/macros_2.11)
-[![Dependencies](https://app.updateimpact.com/badge/634276070333485056/macwire.svg?config=compile)](https://app.updateimpact.com/latest/634276070333485056/macwire)                           
+[![Dependencies](https://app.updateimpact.com/badge/634276070333485056/macwire.svg?config=compile)](https://app.updateimpact.com/latest/634276070333485056/macwire)
 
-MacWire generates `new` instance creation code of given classes, using values in the enclosing type for constructor
+Macwire is a macro that turns this:
+
+```scala
+lazy val myService = wire[MyService]
+
+// with your service defined elsewhere:
+// class MyService(otherService1: OtherService1, otherService2: OtherService2) { ... }
+```
+
+into this:
+
+```scala
+trait Module {
+  lazy val myService = new MyService(otherService1, otherService2)
+}
+```
+
+so that when you do this:
+
+```diff
+-class MyService(otherService1: OtherService1, otherService2: OtherService2) { ... }
++class MyService(otherService1: OtherService1, otherService2: OtherService2, otherService3: OtherService3) { ... }
+
+```
+
+you don't **also** have to do this:
+
+```diff
+ // in DI module:
+-lazy val myService = new MyService(otherService1, otherService2)
++lazy val myService = new MyService(otherService1, otherService2, otherService3)
+
+ // in unit tests:
+-val serviceToTest = new MyService(otherService1, otherService2)
++val serviceToTest = new MyService(otherService1, otherService2, otherService3)
+
+```
+
+The `new` instance creation code of given classes is generated using values in the enclosing type for constructor
 parameters, with the help of [Scala Macros](http://scalamacros.org/).
 
 For a general introduction to DI in Scala, take a look at the [Guide to DI in Scala](http://di-in-scala.github.io/),
@@ -40,7 +78,7 @@ class-wiring code by hand. Instead, it is enough to declare which classes should
 should be accessed (see Scopes).
 
 Classes to be wired should be organized in "modules", which can be Scala `trait`s, `class`es or `object`s.
-Multiple modules can be combined using inheritance or composition; values from the inherited/nested modules are also 
+Multiple modules can be combined using inheritance or composition; values from the inherited/nested modules are also
 used for wiring.
 
 MacWire can be in many cases a replacement for DI containers, offering greater control on when and how classes are
@@ -106,11 +144,11 @@ How wiring works
 For each constructor parameter of the given class, MacWire tries to find a value [conforming](http://www.scala-lang.org/files/archive/spec/2.11/03-types.html#conformance) to the parameter's
 type in the enclosing method and trait/class/object:
 
-* first it tries to find a unique value declared as a value in the current block, argument of enclosing methods 
+* first it tries to find a unique value declared as a value in the current block, argument of enclosing methods
 and anonymous functions.
 * then it tries to find a unique value declared or imported in the enclosing type
 * then it tries to find a unique value in parent types (traits/classes)
-* if the parameter is marked as implicit, it is ignored by MacWire and handled by the normal implicit resolution mechanism 
+* if the parameter is marked as implicit, it is ignored by MacWire and handled by the normal implicit resolution mechanism
 
 Here value means either a `val` or a no-parameter `def`, as long as the return type matches.
 
@@ -159,7 +197,7 @@ trait TaxModule {
 Factory methods
 ---------------
 
-You can also wire an object using a factory method, instead of a constructor. For that, use `wireWith` instead of 
+You can also wire an object using a factory method, instead of a constructor. For that, use `wireWith` instead of
 `wire`. For example:
 
 ````scala
@@ -192,16 +230,16 @@ you need to tell MacWire that it should look inside the nested modules.
 To do that, you can use imports:
 
 ````scala
-class FacebookAccess(userFind: UserFinder) 
+class FacebookAccess(userFind: UserFinder)
 
-class UserModule { 
-  lazy val userFinder = ... // as before 
-} 
+class UserModule {
+  lazy val userFinder = ... // as before
+}
 
 class SocialModule(userModule: UserModule) {
   import userModule._
-  
-  lazy val facebookAccess = wire[FacebookAccess] 
+
+  lazy val facebookAccess = wire[FacebookAccess]
 }
 ````
 
@@ -209,13 +247,13 @@ Or, if you are using that pattern a lot, you can annotate your modules using `@M
 searching for values automatically:
 
 ````scala
-class FacebookAccess(userFind: UserFinder) 
+class FacebookAccess(userFind: UserFinder)
 
 @Module
 class UserModule { ... } // as before
 
 class SocialModule(userModule: UserModule) {
-  lazy val facebookAccess = wire[FacebookAccess] 
+  lazy val facebookAccess = wire[FacebookAccess]
 }
 ````
 
@@ -276,7 +314,7 @@ MacWire contains a utility class in the `util` subproject, `Wired`, to support s
 
 An instance of `Wired` can be obtained using the `wiredInModule` macro, given an instance of a module containing the
 wired object graph. Any `vals`, `lazy val`s and parameter-less `def`s (factories) from the module which are references
-will be available in the `Wired` instance. 
+will be available in the `Wired` instance.
 
 The object graph in the module can be hand-wired, wired using `wire`, or a result of any computation.
 
@@ -302,7 +340,7 @@ val wired = wiredInModule(new MyApp)
 // 3. Dynamic lookup of instances
 wired.lookup(classOf[SecurityFilter])
 
-// Returns the mysql database connector, even though its type is MysqlDatabaseConnector, which is 
+// Returns the mysql database connector, even though its type is MysqlDatabaseConnector, which is
 // assignable to DatabaseConnector.
 wired.lookup(classOf[DatabaseConnector])
 
@@ -376,7 +414,7 @@ Sometimes you have multiple objects of the same type that you want to use during
 way of telling the instances apart. As with other things, the answer is: types! Even when not using `wire`, it may
 be useful to give the instances distinct types, to get compile-time checking.
 
-For that purpose Macwire includes support for tagging via [scala-common](https://github.com/softwaremill/scala-common), 
+For that purpose Macwire includes support for tagging via [scala-common](https://github.com/softwaremill/scala-common),
 which lets you attach tags to instances to qualify them. This
 is a compile-time only operation, and doesn't affect the runtime. The tags are derived from
 [Miles Sabin's gist](https://gist.github.com/milessabin/89c9b47a91017973a35f).
@@ -460,11 +498,11 @@ To use MacWire in your project, add a dependency:
 libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.2.3" % "provided"
 
 libraryDependencies += "com.softwaremill.macwire" %% "util" % "2.2.3"
-                  
+
 libraryDependencies += "com.softwaremill.macwire" %% "proxy" % "2.2.3"
 ````
 
-The `macros` subproject contains only code which is used at compile-time, hence the `provided` scope. 
+The `macros` subproject contains only code which is used at compile-time, hence the `provided` scope.
 
 The `util` subproject contains tagging, `Wired` and the `@Module` annotation; if you don't use these features, you don't
 need to include this dependency.
@@ -481,7 +519,7 @@ libraryDependencies += "com.softwaremill.macwire" %% "macros" % "2.2.4-SNAPSHOT"
 libraryDependencies += "com.softwaremill.macwire" %% "util" % "2.2.4-SNAPSHOT"
 ````
 
-Currently 2.x supports only Scala 2.11. 
+Currently 2.x supports only Scala 2.11.
 
 Older 1.x release for Scala 2.10 and 2.11:
 
@@ -501,7 +539,7 @@ build file.
 Scala.js
 --------
 
-Macwire also works with [Scala.js](http://www.scala-js.org/). For an example, see here: 
+Macwire also works with [Scala.js](http://www.scala-js.org/). For an example, see here:
 [Macwire+Scala.js example](https://github.com/adamw/macwire/tree/master/examples/scalajs).
 
 Future development - vote!
@@ -521,7 +559,7 @@ There are two Typesafe Activators which can help you to get started with Scala, 
 Migrating from 1.x <a id="migrating"></a>
 ------------------
 
-* changed how code is split across modules. You'll need to depend on `util` to get tagging & `Wired`, and `proxy` 
+* changed how code is split across modules. You'll need to depend on `util` to get tagging & `Wired`, and `proxy`
 to get interceptors and scopes
 * tagging moved to a separate package. If you use tagging, you'll need to import `com.softwaremill.tagging._`
 * removed `wireImplicit`
@@ -531,7 +569,7 @@ parameters + implicit lookup)
 Play 2.4.x <a id="play24x"></a>
 --------
 
-In Play 2.4.x, you can no longer use getControllerInstance in GlobalSettings for injection. Play has a new pattern for injecting controllers. You must extend ApplicationLoader, from there you can mix in your modules. 
+In Play 2.4.x, you can no longer use getControllerInstance in GlobalSettings for injection. Play has a new pattern for injecting controllers. You must extend ApplicationLoader, from there you can mix in your modules.
 
 ````scala
 import controllers.{Application, Assets}
@@ -543,7 +581,7 @@ import com.softwaremill.macwire._
 
 class AppApplicationLoader extends ApplicationLoader {
   def load(context: Context) = {
-    
+
     // make sure logging is configured
     Logger.configure(context.environment)
 
